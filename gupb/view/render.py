@@ -74,6 +74,7 @@ class SpriteRepository:
             characters.Tabard.VIOLET: load_sprite('characters', 'champion_violet', BLACK),
             characters.Tabard.WHITE: load_sprite('characters', 'champion_white', BLACK),
             characters.Tabard.YELLOW: load_sprite('characters', 'champion_yellow', BLACK),
+            characters.Tabard.MINION: load_sprite('characters', 'minion', None),
 
             effects.Mist: load_sprite('effects', 'mist', BLACK),
             effects.WeaponCut: load_sprite('effects', 'blood', BLACK),
@@ -102,6 +103,7 @@ class SpriteRepository:
                     characters.Tabard.VIOLET,
                     characters.Tabard.WHITE,
                     characters.Tabard.YELLOW,
+                    characters.Tabard.MINION,
                 ],
                 [
                     characters.Facing.RIGHT,
