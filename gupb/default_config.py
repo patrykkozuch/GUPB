@@ -1,5 +1,6 @@
 from gupb.controller import keyboard
 from gupb.controller import random
+from gupb.controller.bupg import bupg
 
 
 keyboard_controller = keyboard.KeyboardController()
@@ -9,7 +10,7 @@ CONFIGURATION = {
         'ordinary_chaos'
     ],
     'controllers': [
-        keyboard_controller,
+        bupg.BUPGController("Minion"),
         random.RandomController("Alice"),
         random.RandomController("Bob"),
         random.RandomController("Cecilia"),
