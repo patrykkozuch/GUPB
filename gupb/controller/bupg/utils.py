@@ -1,5 +1,9 @@
 import numpy as np
 
+from gupb.model import characters
+from gupb.model.characters import Facing
+from gupb.model.coordinates import Coords
+
 
 def circle_from_points(p1, p2, p3):
     # Convert points to numpy arrays
@@ -23,3 +27,21 @@ def circle_from_points(p1, p2, p3):
     cy = -0.5 * X[1]
 
     return cx, cy
+
+
+def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing):
+    move = Coords(
+        curr_pos[1] - new_pos[1],
+        -1 * (curr_pos[0] - new_pos[0]) # Y coordinates of Facing class are inverted
+    )
+
+    if facing.value == move:
+        return characters.Action.STEP_FORWARD
+    elif facing.opposite().value == move:
+        return characters.Action.STEP_BACKWARD
+    elif facing.turn_left().value == move:
+        return characters.Action.STEP_RIGHT
+    elif facing.turn_right().value == move:
+        return characters.Action.STEP_LEFT
+
+    return characters.Action.DO_NOTHING
