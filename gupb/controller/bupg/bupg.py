@@ -6,6 +6,7 @@ from pathfinding.finder.a_star import AStarFinder
 
 from gupb import controller
 from gupb.controller.bupg.knowledge.map import MapKnowledge
+from gupb.controller.bupg.strategies.find_menhir import MenhirEstimator
 from gupb.controller.bupg.utils import position_change_to_move
 from gupb.model import arenas
 from gupb.model import characters
@@ -26,7 +27,8 @@ POSSIBLE_ACTIONS = [
 class BUPGController(controller.Controller):
     def __init__(self, first_name: str):
         self.first_name: str = first_name
-        self.map_knowledge = None
+        self.map_knowledge: MapKnowledge | None = None
+        self.menhir_estimator = None
         self.grid = None
         self.weapon = None
         self.health = None
@@ -41,8 +43,17 @@ class BUPGController(controller.Controller):
     def __hash__(self) -> int:
         return hash(self.first_name)
 
+    def estimate_menhir(self, knowledge: characters.ChampionKnowledge):
+        menhir_estimate, weight = self.menhir_estimator.estimate_menhir(knowledge)
+
+        if menhir_estimate is not None:
+            self.map_knowledge.update_menhir_location(menhir_estimate, weight)
+            print(f"Estimated menhir location: {self.map_knowledge.estimated_menhir_location}")
+
     def update_knowledge(self, knowledge: characters.ChampionKnowledge):
         self.map_knowledge.update_terrain(knowledge)
+        self.map_knowledge.episode_tick()
+        self.estimate_menhir(knowledge)
 
         my = knowledge.visible_tiles[knowledge.position].character
         self.weapon = my.weapon
@@ -84,6 +95,7 @@ class BUPGController(controller.Controller):
 
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
         self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
+        self.menhir_estimator = MenhirEstimator(self.map_knowledge)
         self.create_grid()
 
     def create_grid(self):
