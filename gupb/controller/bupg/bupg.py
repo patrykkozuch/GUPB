@@ -1,6 +1,5 @@
 import random
 import traceback
-from lib2to3.btm_utils import reduce_tree
 
 import numpy as np
 from pathfinding.core.grid import Grid
@@ -29,7 +28,7 @@ POSSIBLE_ACTIONS = [
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
-    PREFERRED_WEAPON = "axe"
+    WEAPON_PRIORITY = ["axe", "sword", "bow", "amulet", "scroll", "propheticweapon", "knife"]
 
     def __init__(self, first_name: str):
         self.first_name: str = first_name
@@ -103,6 +102,16 @@ class BUPGController(controller.Controller):
 
         return False
 
+    def find_best_weapon(self):
+        for weapon in self.WEAPON_PRIORITY:
+            # we already have the best available weapon
+            if weapon == self.weapon.name:
+                return None
+
+            weapon_coords = self.map_knowledge.find_closest_weapon(self.position, weapon)
+            if weapon_coords is not None:
+                return weapon_coords
+
     def decide(self, knowledge: characters.ChampionKnowledge) -> characters.Action:
         try:
             self.ticks += 1
@@ -117,7 +126,7 @@ class BUPGController(controller.Controller):
             if dist_to_potion <= 3:
                 point_to_go = point
             else:
-                if self.weapon.name != self.PREFERRED_WEAPON and (weapon_coords := self.map_knowledge.find_closest_weapon(self.position, self.PREFERRED_WEAPON)):
+                if weapon_coords := self.find_best_weapon():
                     point_to_go = weapon_coords
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
@@ -207,10 +216,14 @@ class BUPGController(controller.Controller):
 
             return largest_blob.astype(np.uint8)
 
-        self.grid = find_largest_blob(find_largest_blob(self.grid))
+        self.grid = find_largest_blob(self.grid)
 
         self.map_knowledge.looked_at = self.grid
         self.map_knowledge.remove_unreachable_weapons()
+
+        for (x, y), tile in self.map_knowledge.terrain.items():
+            if tile.loot and self.grid[x, y] > 0:
+                self.grid[x, y] = 3
 
         self.grid = Grid(matrix=self.grid)
 
