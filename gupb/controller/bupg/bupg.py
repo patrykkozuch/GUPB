@@ -223,7 +223,7 @@ class BUPGController(controller.Controller):
 
         for (x, y), tile in self.map_knowledge.terrain.items():
             if tile.loot and self.grid[x, y] > 0:
-                self.grid[x, y] = 3
+                self.grid[x, y] = 3 + self.WEAPON_PRIORITY.index(tile.loot.description().name)
 
         self.grid = Grid(matrix=self.grid)
 
