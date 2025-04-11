@@ -28,7 +28,7 @@ POSSIBLE_ACTIONS = [
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
-    WEAPON_PRIORITY = ["axe", "sword", "bow", "amulet", "scroll", "propheticweapon", "knife"]
+    WEAPON_PRIORITY = ["axe", "sword", "bow_unloaded", "bow_loaded", "amulet", "scroll", "propheticweapon", "knife"]
 
     def __init__(self, first_name: str):
         self.first_name: str = first_name
@@ -78,7 +78,7 @@ class BUPGController(controller.Controller):
             wpn_class = Axe
         elif self.weapon.name == "sword":
             wpn_class = Sword
-        elif self.weapon.name == "bow":
+        elif self.weapon.name == "bow_unloaded" or self.weapon.name == "bow_loaded":
             wpn_class = Bow
         elif self.weapon.name == "knife":
             wpn_class = Knife
@@ -132,9 +132,7 @@ class BUPGController(controller.Controller):
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
                     tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
 
-                    dist_to_tree = abs(self.position[0] - tree_coord[0]) + abs(self.position[1] - tree_coord[1])
-
-                    if dist_to_mist > 5 >= dist_to_tree:
+                    if dist_to_mist > 5 and tree_coord and abs(self.map_knowledge.menhir_location[0] - tree_coord[0]) + abs(self.map_knowledge.menhir_location[1] - tree_coord[1]) <= 8:
                         point_to_go = tree_coord
 
                         if self.position == point_to_go:
