@@ -2,7 +2,6 @@ from typing import Optional
 
 import numpy as np
 import scipy.ndimage
-from matplotlib import pyplot as plt
 
 from gupb.model import characters
 from gupb.model.arenas import Terrain, terrain_size
@@ -39,6 +38,15 @@ class MapKnowledge:
         self.mist: set[Coords] = set()
         self.fires: set[Coords] = set()
 
+    def remove_unreachable_weapons(self):
+        weapons_to_remove = []
+        for coords in self.weapons:
+            if self.looked_at[coords.y, coords.x] == 0:
+                weapons_to_remove.append(coords)
+
+        for weapon in weapons_to_remove:
+            del self.weapons[weapon]
+
     @property
     def mist_radius(self):
         if self._mist_radius is None:
@@ -66,11 +74,11 @@ class MapKnowledge:
                 self.consumables[coords] = tile.consumable
 
             # Update fires
-            if "fire" in [ef for ef in tile.effects]:
+            if "fire" in [ef.type for ef in tile.effects]:
                 self.fires.add(coords)
 
             # Update mists
-            if "mist" in [ef for ef in tile.effects]:
+            if "mist" in [ef.type for ef in tile.effects]:
                 self.mist.add(coords)
 
             if tile.type == "menhir":
@@ -97,12 +105,12 @@ class MapKnowledge:
         arg = np.unravel_index(np.argmax(distance_map),shape=self.looked_at.shape)
         return arg
 
-    def find_closest_axe(self, position):
+    def find_closest_weapon(self, position: Coords, weapon_type: str):
         x, y = position
         min = float("inf")
         coords = None
         for (w_x, w_y), desc in self.weapons.items():
-            if desc.name != 'axe':
+            if desc.name != weapon_type:
                 continue
 
             dist = abs(x - w_x) + abs(y - w_y)

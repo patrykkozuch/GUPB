@@ -4,6 +4,7 @@ import traceback
 import numpy as np
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
+from scipy.ndimage import label
 
 from gupb import controller
 from gupb.controller.bupg.knowledge.map import MapKnowledge
@@ -26,6 +27,8 @@ POSSIBLE_ACTIONS = [
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
+    PREFERRED_WEAPON = "axe"
+
     def __init__(self, first_name: str):
         self.first_name: str = first_name
         self.map_knowledge: MapKnowledge | None = None
@@ -82,18 +85,25 @@ class BUPGController(controller.Controller):
             dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
             if dist_to_potion < 3:
                 point_to_go = point
+                print("POTION")
             else:
-                if self.weapon.name != 'axe' and (axe_coords := self.map_knowledge.find_closest_axe(self.position)):
-                    point_to_go = axe_coords
+                if self.weapon.name != self.PREFERRED_WEAPON and (weapon_coords := self.map_knowledge.find_closest_weapon(self.position, self.PREFERRED_WEAPON)):
+                    point_to_go = weapon_coords
+                    print("WEAPON")
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
-                    print(dist_to_mist)
-                    if dist_to_mist > 5:
-                        point_to_go = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
+
+                    if dist_to_mist > 5 and (tree_coord := self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)):
+                        print("TREE")
+                        point_to_go = tree_coord
                     else:
+                        print("MENHIR")
                         point_to_go = self.map_knowledge.menhir_location
                 else:
+                    print("UNKNOWN")
                     point_to_go = most_unknown_point
+
+            print(point_to_go, most_unknown_point)
 
             if not position_changed and self.tries <= 1:
                 self.tries += 1
@@ -152,7 +162,27 @@ class BUPGController(controller.Controller):
             if tile.terrain_passable():
                 self.grid[y, x] = 1
 
+        def find_largest_blob(arr):
+            # Label connected components (4-connectivity by default)
+            labeled_array, num_features = label(arr)
+
+            # Count sizes of all blobs (excluding background label 0)
+            sizes = np.bincount(labeled_array.ravel())
+            sizes[0] = 0  # ignore background
+
+            # Get label of largest blob
+            max_label = sizes.argmax()
+            max_size = sizes[max_label]
+
+            # Create a mask for the largest blob
+            largest_blob = (labeled_array == max_label)
+
+            return largest_blob.astype(np.uint8)
+
+        self.grid = find_largest_blob(find_largest_blob(self.grid))
+
         self.map_knowledge.looked_at = self.grid
+        self.map_knowledge.remove_unreachable_weapons()
 
         self.grid = Grid(matrix=self.grid)
 
