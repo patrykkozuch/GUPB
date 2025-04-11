@@ -1,11 +1,11 @@
 import random
-import sys
 import traceback
-from threading import Event
+from lib2to3.btm_utils import reduce_tree
 
 import numpy as np
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
+from scipy.ndimage import label
 
 from gupb import controller
 from gupb.controller.bupg.knowledge.map import MapKnowledge
@@ -16,6 +16,7 @@ from gupb.model import characters
 from gupb.model.arenas import Arena
 from gupb.model.characters import Facing, Action
 from gupb.model.coordinates import Coords
+from gupb.model.weapons import Axe, Bow, Sword, Knife, Scroll, Amulet, PropheticWeapon
 
 POSSIBLE_ACTIONS = [
     characters.Action.TURN_LEFT,
@@ -28,10 +29,7 @@ POSSIBLE_ACTIONS = [
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
-    WEAPON_PRIORITY = ["axe", "sword", "bow_unloaded", "bow_loaded", "amulet", "scroll", "propheticweapon", "knife"]
-
-    train_step = Event()
-    env = None
+    PREFERRED_WEAPON = "axe"
 
     def __init__(self, first_name: str):
         self.first_name: str = first_name
@@ -46,14 +44,6 @@ class BUPGController(controller.Controller):
         self.tries = 0
         self.ticks = 0
         self.me = None
-        # Notify the environment that the game has started
-        self.env.attach_controller(self)
-        self.env.game_started.set()
-        self.died = False
-
-    @classmethod
-    def assign_env(cls, env):
-        cls.env = env
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, BUPGController):
@@ -84,6 +74,35 @@ class BUPGController(controller.Controller):
         tile_in_front = knowledge.visible_tiles[self.position + self.facing.value]
         return tile_in_front.character is not None and tile_in_front.character != self.me
 
+    def enemy_in_range(self, knowledge: characters.ChampionKnowledge):
+        if self.weapon.name == "axe":
+            wpn_class = Axe
+        elif self.weapon.name == "sword":
+            wpn_class = Sword
+        elif self.weapon.name == "bow":
+            wpn_class = Bow
+        elif self.weapon.name == "knife":
+            wpn_class = Knife
+        elif self.weapon.name == "scroll":
+            wpn_class = Scroll
+        elif self.weapon.name == "amulet":
+            wpn_class = Amulet
+        elif self.weapon.name == "propheticweapon":
+            wpn_class = PropheticWeapon
+        else:
+            return False
+
+        coords = wpn_class.cut_positions(self.map_knowledge.terrain, self.position, self.facing)
+
+        all_coords = set(coords) & set(knowledge.visible_tiles.keys())
+
+        for coord in coords:
+            tile = knowledge.visible_tiles[coord]
+            if tile.character is not None and tile.character != self.me:
+                return True
+
+        return False
+
     def decide(self, knowledge: characters.ChampionKnowledge) -> characters.Action:
         try:
             self.ticks += 1
@@ -95,16 +114,20 @@ class BUPGController(controller.Controller):
             most_unknown_point = self.map_knowledge.get_most_unknown_point()
 
             dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
-            if dist_to_potion < 3:
+            if dist_to_potion <= 3:
                 point_to_go = point
             else:
-                if weapon_coords := self.find_best_weapon():
+                if self.weapon.name != self.PREFERRED_WEAPON and (weapon_coords := self.map_knowledge.find_closest_weapon(self.position, self.PREFERRED_WEAPON)):
                     point_to_go = weapon_coords
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
-                    print(dist_to_mist)
-                    if dist_to_mist > 5:
-                        point_to_go = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
+
+                    if dist_to_mist > 5 and (tree_coord := self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)):
+                        point_to_go = tree_coord
+
+                        if self.position == point_to_go:
+                            if self.enemy_in_range(knowledge):
+                                return characters.Action.ATTACK
                     else:
                         point_to_go = self.map_knowledge.menhir_location
                 else:
@@ -125,14 +148,6 @@ class BUPGController(controller.Controller):
             self.tries = 0
         except:
             print(traceback.print_exc())
-
-        # Mark the current turn as finished
-        self.env.turn_event.set()
-
-        # Wait for the training step to finish
-        self.train_step.wait()
-        self.train_step.clear()
-
         # Just Dance
         return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
 
@@ -160,18 +175,11 @@ class BUPGController(controller.Controller):
     def praise(self, score: int) -> None:
         pass
 
-    def die(self):
-        self.died = True
-        self.env.turn_event.set()
-        self.train_step.wait()
-        self.train_step.clear()
-
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
         self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
         self.menhir_estimator = MenhirEstimator(self.map_knowledge)
         self.ticks = 0
         self.create_grid()
-        self.died = False
 
     def create_grid(self):
         W = max(self.map_knowledge.terrain, key=lambda x: x[0])[0] + 1
@@ -182,7 +190,27 @@ class BUPGController(controller.Controller):
             if tile.terrain_passable():
                 self.grid[y, x] = 1
 
+        def find_largest_blob(arr):
+            # Label connected components (4-connectivity by default)
+            labeled_array, num_features = label(arr)
+
+            # Count sizes of all blobs (excluding background label 0)
+            sizes = np.bincount(labeled_array.ravel())
+            sizes[0] = 0  # ignore background
+
+            # Get label of largest blob
+            max_label = sizes.argmax()
+            max_size = sizes[max_label]
+
+            # Create a mask for the largest blob
+            largest_blob = (labeled_array == max_label)
+
+            return largest_blob.astype(np.uint8)
+
+        self.grid = find_largest_blob(find_largest_blob(self.grid))
+
         self.map_knowledge.looked_at = self.grid
+        self.map_knowledge.remove_unreachable_weapons()
 
         self.grid = Grid(matrix=self.grid)
 
@@ -193,3 +221,8 @@ class BUPGController(controller.Controller):
     @property
     def preferred_tabard(self) -> characters.Tabard:
         return characters.Tabard.MINION
+
+
+POTENTIAL_CONTROLLERS = [
+    BUPGController("Minion")
+]

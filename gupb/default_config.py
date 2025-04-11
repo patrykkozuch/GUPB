@@ -2,7 +2,6 @@ from gupb.controller import random
 from gupb.controller.bupg import bupg
 from gupb.controller.keyboard import KeyboardController
 
-
 minion = bupg.BUPGController("Minion")
 keyboard = KeyboardController()
 

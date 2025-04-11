@@ -40,8 +40,8 @@ def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing):
     elif facing.opposite().value == move:
         return characters.Action.STEP_BACKWARD
     elif facing.turn_left().value == move:
-        return characters.Action.TURN_LEFT
+        return characters.Action.STEP_LEFT
     elif facing.turn_right().value == move:
-        return characters.Action.TURN_RIGHT
+        return characters.Action.STEP_RIGHT
 
     return characters.Action.DO_NOTHING
