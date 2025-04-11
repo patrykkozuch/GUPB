@@ -1,5 +1,6 @@
 import random
 import traceback
+from lib2to3.btm_utils import reduce_tree
 
 import numpy as np
 from pathfinding.core.grid import Grid
@@ -15,6 +16,7 @@ from gupb.model import characters
 from gupb.model.arenas import Arena
 from gupb.model.characters import Facing, Action
 from gupb.model.coordinates import Coords
+from gupb.model.weapons import Axe, Bow, Sword, Knife, Scroll, Amulet, PropheticWeapon
 
 POSSIBLE_ACTIONS = [
     characters.Action.TURN_LEFT,
@@ -72,6 +74,35 @@ class BUPGController(controller.Controller):
         tile_in_front = knowledge.visible_tiles[self.position + self.facing.value]
         return tile_in_front.character is not None and tile_in_front.character != self.me
 
+    def enemy_in_range(self, knowledge: characters.ChampionKnowledge):
+        if self.weapon.name == "axe":
+            wpn_class = Axe
+        elif self.weapon.name == "sword":
+            wpn_class = Sword
+        elif self.weapon.name == "bow":
+            wpn_class = Bow
+        elif self.weapon.name == "knife":
+            wpn_class = Knife
+        elif self.weapon.name == "scroll":
+            wpn_class = Scroll
+        elif self.weapon.name == "amulet":
+            wpn_class = Amulet
+        elif self.weapon.name == "propheticweapon":
+            wpn_class = PropheticWeapon
+        else:
+            return False
+
+        coords = wpn_class.cut_positions(self.map_knowledge.terrain, self.position, self.facing)
+
+        all_coords = set(coords) & set(knowledge.visible_tiles.keys())
+
+        for coord in coords:
+            tile = knowledge.visible_tiles[coord]
+            if tile.character is not None and tile.character != self.me:
+                return True
+
+        return False
+
     def decide(self, knowledge: characters.ChampionKnowledge) -> characters.Action:
         try:
             self.ticks += 1
@@ -83,27 +114,24 @@ class BUPGController(controller.Controller):
             most_unknown_point = self.map_knowledge.get_most_unknown_point()
 
             dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
-            if dist_to_potion < 3:
+            if dist_to_potion <= 3:
                 point_to_go = point
-                print("POTION")
             else:
                 if self.weapon.name != self.PREFERRED_WEAPON and (weapon_coords := self.map_knowledge.find_closest_weapon(self.position, self.PREFERRED_WEAPON)):
                     point_to_go = weapon_coords
-                    print("WEAPON")
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
 
                     if dist_to_mist > 5 and (tree_coord := self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)):
-                        print("TREE")
                         point_to_go = tree_coord
+
+                        if self.position == point_to_go:
+                            if self.enemy_in_range(knowledge):
+                                return characters.Action.ATTACK
                     else:
-                        print("MENHIR")
                         point_to_go = self.map_knowledge.menhir_location
                 else:
-                    print("UNKNOWN")
                     point_to_go = most_unknown_point
-
-            print(point_to_go, most_unknown_point)
 
             if not position_changed and self.tries <= 1:
                 self.tries += 1
