@@ -1,4 +1,5 @@
 import random
+import traceback
 
 import numpy as np
 from pathfinding.core.grid import Grid
@@ -34,6 +35,9 @@ class BUPGController(controller.Controller):
         self.health = None
         self.facing = None
         self.pathfinder = AStarFinder()
+        self.position = None
+        self.tries = 0
+        self.ticks = 0
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, BUPGController):
@@ -52,8 +56,8 @@ class BUPGController(controller.Controller):
 
     def update_knowledge(self, knowledge: characters.ChampionKnowledge):
         self.map_knowledge.update_terrain(knowledge)
-        self.map_knowledge.episode_tick()
-        self.estimate_menhir(knowledge)
+        # self.map_knowledge.episode_tick()
+        # self.estimate_menhir(knowledge)
 
         my = knowledge.visible_tiles[knowledge.position].character
         self.weapon = my.weapon
@@ -61,11 +65,28 @@ class BUPGController(controller.Controller):
         self.facing = my.facing
 
     def decide(self, knowledge: characters.ChampionKnowledge) -> characters.Action:
-        self.update_knowledge(knowledge)
+        try:
+            self.ticks += 1
+            position_changed = knowledge.position != self.position
 
-        if action := self.go(knowledge.position, Coords(4, 7), self.facing):
-            return action
+            self.update_knowledge(knowledge)
+            self.position = knowledge.position
 
+            most_unknown_point = self.map_knowledge.get_most_unknown_point()
+
+            point_to_go = self.map_knowledge.menhir_location if self.map_knowledge.menhir_location else most_unknown_point
+            if not position_changed and self.tries <= 1:
+                self.tries += 1
+                if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
+                    return action
+
+            if not position_changed and self.tries <= 2:
+                self.tries += 1
+                return characters.Action.ATTACK
+
+            self.tries = 0
+        except:
+            print(traceback.print_exc())
         # Just Dance
         return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
 
@@ -96,6 +117,7 @@ class BUPGController(controller.Controller):
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
         self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
         self.menhir_estimator = MenhirEstimator(self.map_knowledge)
+        self.ticks = 0
         self.create_grid()
 
     def create_grid(self):
@@ -106,6 +128,8 @@ class BUPGController(controller.Controller):
         for (x, y), tile in self.map_knowledge.terrain.items():
             if tile.terrain_passable():
                 self.grid[y, x] = 1
+
+        self.map_knowledge.looked_at = self.grid
 
         self.grid = Grid(matrix=self.grid)
 

@@ -1,16 +1,15 @@
-from gupb.controller import keyboard
 from gupb.controller import random
 from gupb.controller.bupg import bupg
 
 
-keyboard_controller = keyboard.KeyboardController()
+minion = bupg.BUPGController("Minion")
 
 CONFIGURATION = {
     'arenas': [
         'ordinary_chaos'
     ],
     'controllers': [
-        bupg.BUPGController("Minion"),
+        minion,
         random.RandomController("Alice"),
         random.RandomController("Bob"),
         random.RandomController("Cecilia"),
@@ -18,7 +17,7 @@ CONFIGURATION = {
     ],
     'start_balancing': False,
     'visualise': True,
-    'show_sight': keyboard_controller,
-    'runs_no': 1,
+    'show_sight': minion,
+    'runs_no': 10,
     'profiling_metrics': [],
 }

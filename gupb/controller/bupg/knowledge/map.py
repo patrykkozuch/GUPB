@@ -1,6 +1,8 @@
 from typing import Optional
 
 import numpy as np
+import scipy.ndimage
+from matplotlib import pyplot as plt
 
 from gupb.model import characters
 from gupb.model.arenas import Terrain, terrain_size
@@ -18,6 +20,7 @@ class MapKnowledge:
         self._total_weight: float = 0
         self._mist_radius: int | None = None
         self._episode: int = 0
+        self.looked_at = None
 
         # All these attributes MIGHT BE OUTDATED
         self.weapons = {
@@ -44,7 +47,10 @@ class MapKnowledge:
         return self._mist_radius
 
     def update_terrain(self, knowledge: characters.ChampionKnowledge):
+        self.looked_at[knowledge.position[1], knowledge.position[0]] = 0
         for coords, tile in knowledge.visible_tiles.items():
+            self.looked_at[coords[1], coords[0]] = 0
+
             # Update weapons
             if coords in self.weapons and tile.loot is None:
                 del self.weapons[coords]
@@ -57,7 +63,7 @@ class MapKnowledge:
                 del self.consumables[coords]
 
             if tile.consumable:
-                del self.consumables[coords]
+                self.consumables[coords] = tile.consumable
 
             # Update fires
             if "fire" in [ef for ef in tile.effects]:
@@ -67,7 +73,7 @@ class MapKnowledge:
             if "mist" in [ef for ef in tile.effects]:
                 self.mist.add(coords)
 
-            if self.terrain[coords].description() == "menhir":
+            if tile.type == "menhir":
                 self.menhir_location = coords
 
     def episode_tick(self):
@@ -85,3 +91,8 @@ class MapKnowledge:
             self.estimated_menhir_location = np.zeros((2,))
         self._total_weight += weight
         self.estimated_menhir_location += weight * (new_estimate - self.estimated_menhir_location) / self._total_weight
+
+    def get_most_unknown_point(self):
+        distance_map = scipy.ndimage.distance_transform_cdt(self.looked_at, metric="taxicab")
+        arg = np.unravel_index(np.argmax(distance_map),shape=self.looked_at.shape)
+        return arg
