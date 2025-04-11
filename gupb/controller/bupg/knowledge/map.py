@@ -102,7 +102,7 @@ class MapKnowledge:
 
     def get_most_unknown_point(self):
         distance_map = scipy.ndimage.distance_transform_cdt(self.looked_at, metric="taxicab")
-        arg = np.unravel_index(np.argmax(distance_map),shape=self.looked_at.shape)
+        arg = np.unravel_index(np.argmax(distance_map), shape=self.looked_at.shape)
         return arg
 
     def find_closest_weapon(self, position: Coords, weapon_type: str):
