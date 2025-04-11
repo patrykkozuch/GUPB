@@ -20,6 +20,8 @@ class MapKnowledge:
         self._mist_radius: int | None = None
         self._episode: int = 0
         self.looked_at = None
+        self.opponents: dict[Coords, int] = {}
+        self.timestamp = 0
 
         # All these attributes MIGHT BE OUTDATED
         self.weapons = {
@@ -83,6 +85,12 @@ class MapKnowledge:
 
             if tile.type == "menhir":
                 self.menhir_location = coords
+
+            if tile.character:
+                self.opponents[coords] = self.timestamp
+
+        self.timestamp += 1
+
 
     def episode_tick(self):
         if self._mist_radius is None:
