@@ -32,7 +32,7 @@ def circle_from_points(p1, p2, p3):
 def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing):
     move = Coords(
         curr_pos[1] - new_pos[1],
-        -1 * (curr_pos[0] - new_pos[0]) # Y coordinates of Facing class are inverted
+        (curr_pos[0] - new_pos[0])
     )
 
     if facing.value == move:
@@ -40,8 +40,8 @@ def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing):
     elif facing.opposite().value == move:
         return characters.Action.STEP_BACKWARD
     elif facing.turn_left().value == move:
-        return characters.Action.STEP_RIGHT
-    elif facing.turn_right().value == move:
         return characters.Action.STEP_LEFT
+    elif facing.turn_right().value == move:
+        return characters.Action.STEP_RIGHT
 
     return characters.Action.DO_NOTHING
