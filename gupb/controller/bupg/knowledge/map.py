@@ -101,9 +101,9 @@ class MapKnowledge:
         self.estimated_menhir_location += weight * (new_estimate - self.estimated_menhir_location) / self._total_weight
 
     def get_most_unknown_point(self):
-        distance_map = scipy.ndimage.distance_transform_cdt(self.looked_at, metric="taxicab")
+        distance_map = scipy.ndimage.distance_transform_edt(self.looked_at)
         arg = np.unravel_index(np.argmax(distance_map), shape=self.looked_at.shape)
-        return arg
+        return arg[1], arg[0]
 
     def find_closest_weapon(self, position: Coords, weapon_type: str):
         x, y = position

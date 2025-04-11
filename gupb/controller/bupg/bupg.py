@@ -130,8 +130,11 @@ class BUPGController(controller.Controller):
                     point_to_go = weapon_coords
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
+                    tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
 
-                    if dist_to_mist > 5 and (tree_coord := self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)):
+                    dist_to_tree = abs(self.position[0] - tree_coord[0]) + abs(self.position[1] - tree_coord[1])
+
+                    if dist_to_mist > 5 >= dist_to_tree:
                         point_to_go = tree_coord
 
                         if self.position == point_to_go:
@@ -173,7 +176,6 @@ class BUPGController(controller.Controller):
         end = self.grid.node(*end)
 
         path, runs = self.pathfinder.find_path(start, end, self.grid)
-
         if len(path) > 1:
             return position_change_to_move(
                 (path[1].y, path[1].x),
