@@ -96,3 +96,55 @@ class MapKnowledge:
         distance_map = scipy.ndimage.distance_transform_cdt(self.looked_at, metric="taxicab")
         arg = np.unravel_index(np.argmax(distance_map),shape=self.looked_at.shape)
         return arg
+
+    def find_closest_axe(self, position):
+        x, y = position
+        min = float("inf")
+        coords = None
+        for (w_x, w_y), desc in self.weapons.items():
+            if desc.name != 'axe':
+                continue
+
+            dist = abs(x - w_x) + abs(y - w_y)
+            if dist < min:
+                min = dist
+                coords = Coords(w_x, w_y)
+
+        return coords
+
+    def find_closest_tree(self, menhir_position: Coords):
+        x, y = menhir_position
+        min = float("inf")
+        coords = None
+        for (w_x, w_y), tile in self.terrain.items():
+            if tile.description().type != 'forest':
+                continue
+
+            dist = abs(x - w_x) + abs(y - w_y)
+            if dist < min:
+                min = dist
+                coords = Coords(w_x, w_y)
+
+        return coords
+
+    def distance_to_mist(self, position: Coords):
+        x, y = position
+        min = float("inf")
+        for w_x, w_y in self.mist:
+            dist = abs(x - w_x) + abs(y - w_y)
+            if dist < min:
+                min = dist
+
+        return min
+
+    def distance_to_potion(self, position: Coords):
+        x, y = position
+        min = float("inf")
+        coords = None
+        for w_x, w_y in self.consumables:
+            dist = abs(x - w_x) + abs(y - w_y)
+            if dist < min:
+                min = dist
+                coords = Coords(w_x, w_y)
+
+        return min, coords

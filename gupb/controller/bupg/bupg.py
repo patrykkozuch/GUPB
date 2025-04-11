@@ -38,6 +38,7 @@ class BUPGController(controller.Controller):
         self.position = None
         self.tries = 0
         self.ticks = 0
+        self.me = None
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, BUPGController):
@@ -59,10 +60,14 @@ class BUPGController(controller.Controller):
         # self.map_knowledge.episode_tick()
         # self.estimate_menhir(knowledge)
 
-        my = knowledge.visible_tiles[knowledge.position].character
-        self.weapon = my.weapon
-        self.health = my.health
-        self.facing = my.facing
+        self.me = knowledge.visible_tiles[knowledge.position].character
+        self.weapon = self.me.weapon
+        self.health = self.me.health
+        self.facing = self.me.facing
+
+    def facing_enemy(self, knowledge: characters.ChampionKnowledge):
+        tile_in_front = knowledge.visible_tiles[self.position + self.facing.value]
+        return tile_in_front.character is not None and tile_in_front.character != self.me
 
     def decide(self, knowledge: characters.ChampionKnowledge) -> characters.Action:
         try:
@@ -74,15 +79,33 @@ class BUPGController(controller.Controller):
 
             most_unknown_point = self.map_knowledge.get_most_unknown_point()
 
-            point_to_go = self.map_knowledge.menhir_location if self.map_knowledge.menhir_location else most_unknown_point
+            dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
+            if dist_to_potion < 3:
+                point_to_go = point
+            else:
+                if self.weapon.name != 'axe' and (axe_coords := self.map_knowledge.find_closest_axe(self.position)):
+                    point_to_go = axe_coords
+                elif self.map_knowledge.menhir_location:
+                    dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
+                    print(dist_to_mist)
+                    if dist_to_mist > 5:
+                        point_to_go = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
+                    else:
+                        point_to_go = self.map_knowledge.menhir_location
+                else:
+                    point_to_go = most_unknown_point
+
             if not position_changed and self.tries <= 1:
                 self.tries += 1
                 if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
                     return action
 
-            if not position_changed and self.tries <= 2:
-                self.tries += 1
-                return characters.Action.ATTACK
+            if not position_changed and self.tries <= 3:
+                if self.facing_enemy(knowledge):
+                    return characters.Action.ATTACK
+                else:
+                    self.tries += 1
+                    return characters.Action.TURN_LEFT
 
             self.tries = 0
         except:
