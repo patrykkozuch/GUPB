@@ -1,9 +1,9 @@
 from gupb.controller import keyboard
 from gupb.controller import random
+from gupb.controller import kirby_learning, kirby
 from gupb.controller import roomba
 from gupb.controller.pirat import pirat
 from gupb.controller import norgul
-from gupb.controller import kirby
 from gupb.controller.neat.kim_dzong_neat_jr import KimDzongNeatJuniorController
 
 
@@ -11,7 +11,15 @@ keyboard_controller = keyboard.KeyboardController()
 
 CONFIGURATION = {
     'arenas': [
-        'ordinary_chaos'
+        'archipelago',
+        'dungeon',
+        'fisher_island',
+        'island',
+        'isolated_shrine',
+        'lone_sanctum',
+        'mini',
+        'ordinary_chaos',
+        'wasteland',
     ],
     'controllers': [
         keyboard_controller,
@@ -22,7 +30,7 @@ CONFIGURATION = {
         random.RandomController("Darius"),
         roomba.RoombaController("Roomba"),
         norgul.NorgulController("Norgul")
-        kirby.KirbyController("Kirby")
+        kirby_learning.KirbyLearningController("KirbyLearning"),
         KimDzongNeatJuniorController(),
     ],
     'start_balancing': False,
