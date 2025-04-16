@@ -74,6 +74,7 @@ class SpriteRepository:
             characters.Tabard.VIOLET: load_sprite('characters', 'champion_violet', BLACK),
             characters.Tabard.WHITE: load_sprite('characters', 'champion_white', BLACK),
             characters.Tabard.YELLOW: load_sprite('characters', 'champion_yellow', BLACK),
+            characters.Tabard.RUSTLER: load_sprite('characters', 'champion_rustler', BLACK),
             characters.Tabard.GAREK: load_sprite('characters', 'garek', BLACK),
             characters.Tabard.REINFORCEDROGUE: load_sprite('characters', 'reinforced_rogue', BLACK),
             characters.Tabard.NORGUL: load_sprite('characters', 'norgul', BLACK),
@@ -108,6 +109,7 @@ class SpriteRepository:
                     characters.Tabard.VIOLET,
                     characters.Tabard.WHITE,
                     characters.Tabard.YELLOW,
+                    characters.Tabard.RUSTLER
                     characters.Tabard.GAREK
                     characters.Tabard.REINFORCEDROGUE
                     characters.Tabard.NORGUL
