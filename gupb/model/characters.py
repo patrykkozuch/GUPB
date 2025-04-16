@@ -47,6 +47,7 @@ class Tabard(Enum):
     VIOLET = 'Violet'
     WHITE = 'White'
     YELLOW = 'Yellow'
+    KERAMZYTOWY_MOCARZ = 'Keramzytowy Mocarz'
     ROOMBA = 'Roomba'
     PIRAT = 'Pirat'
     MINION = 'Minion'
