@@ -55,8 +55,7 @@ class Tabard(Enum):
     MONGOL = 'Mongolek'
     PIKACHU = 'Pikachu'
     R2D2 = 'R2D2'
-    MINION = 'Minion'
-
+    CAMPER = 'Camper'
 
 class Champion:
     def __init__(self, starting_position: coordinates.Coords, arena: arenas.Arena) -> None:
