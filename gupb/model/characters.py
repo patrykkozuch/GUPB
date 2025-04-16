@@ -47,6 +47,7 @@ class Tabard(Enum):
     VIOLET = 'Violet'
     WHITE = 'White'
     YELLOW = 'Yellow'
+    ROOMBA = 'Roomba'
     PIRAT = 'Pirat'
     MINION = 'Minion'
     RUSTLER = 'Rustler'
