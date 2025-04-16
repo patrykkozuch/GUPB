@@ -46,6 +46,7 @@ class Tabard(Enum):
     TURQUOISE = 'Turquoise'
     VIOLET = 'Violet'
     WHITE = 'White'
+    KIRBY = 'Kirby'
     KIMDZONGNEAT = 'KimDzongNeat'
     CAMPER = 'Camper'
 
