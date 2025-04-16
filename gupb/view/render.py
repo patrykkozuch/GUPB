@@ -74,6 +74,7 @@ class SpriteRepository:
             characters.Tabard.VIOLET: load_sprite('characters', 'champion_violet', BLACK),
             characters.Tabard.WHITE: load_sprite('characters', 'champion_white', BLACK),
             characters.Tabard.YELLOW: load_sprite('characters', 'champion_yellow', BLACK),
+            characters.Tabard.NORGUL: load_sprite('characters', 'norgul', BLACK),
             characters.Tabard.KIRBY: load_sprite('characters', 'kirby', BLACK),
             characters.Tabard.KIMDZONGNEAT: load_sprite('characters', 'kim_dzong', BLACK),
             characters.Tabard.CAMPER: load_sprite('characters', 'champion_camper', BLACK),
@@ -105,6 +106,7 @@ class SpriteRepository:
                     characters.Tabard.VIOLET,
                     characters.Tabard.WHITE,
                     characters.Tabard.YELLOW,
+                    characters.Tabard.NORGUL
                     characters.Tabard.KIRBY,
                     characters.Tabard.KIMDZONGNEAT,
                     characters.Tabard.CAMPER,

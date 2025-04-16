@@ -46,9 +46,11 @@ class Tabard(Enum):
     TURQUOISE = 'Turquoise'
     VIOLET = 'Violet'
     WHITE = 'White'
+    NORGUL = 'Norgul'
     KIRBY = 'Kirby'
     KIMDZONGNEAT = 'KimDzongNeat'
     CAMPER = 'Camper'
+    
 
 class Champion:
     def __init__(self, starting_position: coordinates.Coords, arena: arenas.Arena) -> None:
