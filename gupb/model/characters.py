@@ -47,6 +47,7 @@ class Tabard(Enum):
     VIOLET = 'Violet'
     WHITE = 'White'
     YELLOW = 'Yellow'
+    MINION = 'Minion'
     RUSTLER = 'Rustler'
     GAREK = "G.A.R.E.K."
     REINFORCEDROGUE = 'ReinforcedRogue'
