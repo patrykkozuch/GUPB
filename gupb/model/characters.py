@@ -47,13 +47,14 @@ class Tabard(Enum):
     VIOLET = 'Violet'
     WHITE = 'White'
     YELLOW = 'Yellow'
+    RUSTLER = 'Rustler'
     GAREK = "G.A.R.E.K."
     REINFORCEDROGUE = 'ReinforcedRogue'
     NORGUL = 'Norgul'
     KIRBY = 'Kirby'
     KIMDZONGNEAT = 'KimDzongNeat'
     CAMPER = 'Camper'
-    
+
 
 class Champion:
     def __init__(self, starting_position: coordinates.Coords, arena: arenas.Arena) -> None:
