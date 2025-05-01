@@ -1,5 +1,7 @@
 import random
+import sys
 import traceback
+from threading import Event
 
 import numpy as np
 from pathfinding.core.grid import Grid
@@ -26,6 +28,11 @@ POSSIBLE_ACTIONS = [
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
+    WEAPON_PRIORITY = ["axe", "sword", "bow_unloaded", "bow_loaded", "amulet", "scroll", "propheticweapon", "knife"]
+
+    train_step = Event()
+    env = None
+
     def __init__(self, first_name: str):
         self.first_name: str = first_name
         self.map_knowledge: MapKnowledge | None = None
@@ -39,6 +46,14 @@ class BUPGController(controller.Controller):
         self.tries = 0
         self.ticks = 0
         self.me = None
+        # Notify the environment that the game has started
+        self.env.attach_controller(self)
+        self.env.game_started.set()
+        self.died = False
+
+    @classmethod
+    def assign_env(cls, env):
+        cls.env = env
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, BUPGController):
@@ -83,8 +98,8 @@ class BUPGController(controller.Controller):
             if dist_to_potion < 3:
                 point_to_go = point
             else:
-                if self.weapon.name != 'axe' and (axe_coords := self.map_knowledge.find_closest_axe(self.position)):
-                    point_to_go = axe_coords
+                if weapon_coords := self.find_best_weapon():
+                    point_to_go = weapon_coords
                 elif self.map_knowledge.menhir_location:
                     dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
                     print(dist_to_mist)
@@ -110,6 +125,14 @@ class BUPGController(controller.Controller):
             self.tries = 0
         except:
             print(traceback.print_exc())
+
+        # Mark the current turn as finished
+        self.env.turn_event.set()
+
+        # Wait for the training step to finish
+        self.train_step.wait()
+        self.train_step.clear()
+
         # Just Dance
         return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
 
@@ -137,11 +160,18 @@ class BUPGController(controller.Controller):
     def praise(self, score: int) -> None:
         pass
 
+    def die(self):
+        self.died = True
+        self.env.turn_event.set()
+        self.train_step.wait()
+        self.train_step.clear()
+
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
         self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
         self.menhir_estimator = MenhirEstimator(self.map_knowledge)
         self.ticks = 0
         self.create_grid()
+        self.died = False
 
     def create_grid(self):
         W = max(self.map_knowledge.terrain, key=lambda x: x[0])[0] + 1
@@ -163,8 +193,3 @@ class BUPGController(controller.Controller):
     @property
     def preferred_tabard(self) -> characters.Tabard:
         return characters.Tabard.MINION
-
-
-POTENTIAL_CONTROLLERS = [
-    BUPGController("Minion")
-]
