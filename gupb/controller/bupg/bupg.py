@@ -23,6 +23,9 @@ POSSIBLE_ACTIONS = [
     characters.Action.TURN_LEFT,
     characters.Action.TURN_RIGHT,
     characters.Action.STEP_FORWARD,
+    characters.Action.STEP_BACKWARD,
+    characters.Action.STEP_LEFT,
+    characters.Action.STEP_RIGHT,
     characters.Action.ATTACK,
 ]
 
@@ -50,8 +53,9 @@ class BUPGController(controller.Controller):
         self.me = None
         # Notify the environment that the game has started
         self.env.attach_controller(self)
-        self.env.game_started.set()
         self.died = False
+        self.score = None
+        self.knowledge = None
 
     @classmethod
     def assign_env(cls, env):
@@ -74,6 +78,7 @@ class BUPGController(controller.Controller):
 
     def update_knowledge(self, knowledge: characters.ChampionKnowledge):
         self.map_knowledge.update_terrain(knowledge)
+        self.knowledge = knowledge
         # self.map_knowledge.episode_tick()
         # self.estimate_menhir(knowledge)
 
@@ -86,7 +91,8 @@ class BUPGController(controller.Controller):
         tile_in_front = knowledge.visible_tiles[self.position + self.facing.value]
         return tile_in_front.character is not None and tile_in_front.character != self.me
 
-    def enemy_in_range(self, knowledge: characters.ChampionKnowledge):
+    @property
+    def enemy_in_range(self):
         if self.weapon.name == "axe":
             wpn_class = Axe
         elif self.weapon.name == "sword":
@@ -106,10 +112,10 @@ class BUPGController(controller.Controller):
 
         coords = wpn_class.cut_positions(self.map_knowledge.terrain, self.position, self.facing)
 
-        all_coords = set(coords) & set(knowledge.visible_tiles.keys())
+        all_coords = set(coords) & set(self.knowledge.visible_tiles.keys())
 
-        for coord in coords:
-            tile = knowledge.visible_tiles[coord]
+        for coord in all_coords:
+            tile = self.knowledge.visible_tiles[coord]
             if tile.character is not None and tile.character != self.me:
                 return True
 
@@ -133,42 +139,45 @@ class BUPGController(controller.Controller):
             self.update_knowledge(knowledge)
             self.position = knowledge.position
 
-            most_unknown_point = self.map_knowledge.get_most_unknown_point()
-
-            dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
-            if dist_to_potion <= 3:
-                point_to_go = point
-            else:
-                if weapon_coords := self.find_best_weapon():
-                    point_to_go = weapon_coords
-                elif self.map_knowledge.menhir_location:
-                    dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
-                    tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
-
-                    if dist_to_mist > 5 and tree_coord and abs(self.map_knowledge.menhir_location[0] - tree_coord[0]) + abs(self.map_knowledge.menhir_location[1] - tree_coord[1]) <= 8:
-                        point_to_go = tree_coord
-
-                        if self.position == point_to_go:
-                            if self.enemy_in_range(knowledge):
-                                return characters.Action.ATTACK
-                    else:
-                        point_to_go = self.map_knowledge.menhir_location
-                else:
-                    point_to_go = most_unknown_point
-
-            if not position_changed and self.tries <= 1:
-                self.tries += 1
-                if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
-                    return action
-
-            if not position_changed and self.tries <= 3:
-                if self.facing_enemy(knowledge):
-                    return characters.Action.ATTACK
-                else:
-                    self.tries += 1
-                    return characters.Action.TURN_LEFT
-
-            self.tries = 0
+            if not self.env.game_started.is_set():
+                self.env.game_started.set()
+        #
+        #     most_unknown_point = self.map_knowledge.get_most_unknown_point()
+        #
+        #     dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
+        #     if dist_to_potion <= 3:
+        #         point_to_go = point
+        #     else:
+        #         if weapon_coords := self.find_best_weapon():
+        #             point_to_go = weapon_coords
+        #         elif self.map_knowledge.menhir_location:
+        #             dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
+        #             tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
+        #
+        #             if dist_to_mist > 5 and tree_coord and abs(self.map_knowledge.menhir_location[0] - tree_coord[0]) + abs(self.map_knowledge.menhir_location[1] - tree_coord[1]) <= 8:
+        #                 point_to_go = tree_coord
+        #
+        #                 if self.position == point_to_go:
+        #                     if self.enemy_in_range(knowledge):
+        #                         return characters.Action.ATTACK
+        #             else:
+        #                 point_to_go = self.map_knowledge.menhir_location
+        #         else:
+        #             point_to_go = most_unknown_point
+        #
+        #     if not position_changed and self.tries <= 1:
+        #         self.tries += 1
+        #         if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
+        #             return action
+        #
+        #     if not position_changed and self.tries <= 3:
+        #         if self.facing_enemy(knowledge):
+        #             return characters.Action.ATTACK
+        #         else:
+        #             self.tries += 1
+        #             return characters.Action.TURN_LEFT
+        #
+        #     self.tries = 0
         except:
             print(traceback.print_exc())
 
@@ -179,8 +188,9 @@ class BUPGController(controller.Controller):
         self.train_step.wait()
         self.train_step.clear()
 
+        return POSSIBLE_ACTIONS[self.env.action]
         # Just Dance
-        return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
+        # return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
 
     def go(self, start: Coords, end: Coords, facing: Facing) -> Action | None:
         """
@@ -203,13 +213,12 @@ class BUPGController(controller.Controller):
             )
 
     def praise(self, score: int) -> None:
-        pass
-
-    def die(self):
         self.died = True
+        self.score = score
         self.env.turn_event.set()
         self.train_step.wait()
         self.train_step.clear()
+        print(score)
 
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
         self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
@@ -254,6 +263,48 @@ class BUPGController(controller.Controller):
                 self.grid[x, y] = 3 + self.WEAPON_PRIORITY.index(tile.loot.description().name)
 
         self.grid = Grid(matrix=self.grid)
+
+    @property
+    def neighborhood(self):
+        L1_ENCODING = ['sea', 'land', 'forest', 'wall', 'menhir', 'mist', 'fire']
+        L2_ENCODING = self.WEAPON_PRIORITY + ['potion']
+
+        neighborhood = np.zeros(shape=(15, 15, 3))
+        for x in range(self.position.x - 7, self.position.x + 8):
+            for y in range(self.position.y - 7, self.position.y + 8):
+                if x < 0:
+                    continue
+                if y < 0:
+                    continue
+
+                if (x, y) not in self.map_knowledge.terrain:
+                    continue
+
+                l1_index = (y - (self.position.y - 7), x - (self.position.x - 7), 0)
+                l2_index = (y - (self.position.y - 7), x - (self.position.x - 7), 1)
+                l3_index = (y - (self.position.y - 7), x - (self.position.x - 7), 2)
+
+                if self.map_knowledge.menhir_location is not None and self.map_knowledge.menhir_location[0] == x and self.map_knowledge.menhir_location[1] == y:
+                    neighborhood[l1_index] = (L1_ENCODING.index("menhir") + 1) * 30
+                else:
+                    neighborhood[l1_index] = (L1_ENCODING.index(self.map_knowledge.terrain[x, y].description().type) + 1) * 30
+
+                if (x, y) in self.map_knowledge.fires:
+                    neighborhood[l1_index] = (L1_ENCODING.index('fire') + 1) * 30
+
+                if (x, y) in self.map_knowledge.mist:
+                    neighborhood[l1_index] = (L1_ENCODING.index('mist') + 1) * 30
+
+                if (x, y) in self.map_knowledge.weapons:
+                    neighborhood[l2_index] = (L2_ENCODING.index(self.map_knowledge.weapons[x, y].name) + 1) * 25
+
+                if (x, y) in self.map_knowledge.consumables:
+                    neighborhood[l2_index] = (L2_ENCODING.index(self.map_knowledge.consumables[x, y].name) + 1) * 25
+
+                if (x, y) in self.map_knowledge.opponents:
+                    neighborhood[l3_index] = 255 / (self.map_knowledge.timestamp - self.map_knowledge.opponents[x, y])
+
+        return neighborhood.astype(np.uint8)
 
     @property
     def name(self) -> str:

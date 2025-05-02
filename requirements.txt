@@ -18,4 +18,3 @@ sortedcontainers==2.4.0
 tqdm==4.66.1
 
 torch~=2.6.0
-scikit-image~=0.25.2

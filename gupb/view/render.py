@@ -117,10 +117,10 @@ class SpriteRepository:
                     characters.Tabard.ROOMBA,
                     characters.Tabard.PIRAT,
                     characters.Tabard.MINION,
-                    characters.Tabard.RUSTLER
-                    characters.Tabard.GAREK
-                    characters.Tabard.REINFORCEDROGUE
-                    characters.Tabard.NORGUL
+                    characters.Tabard.RUSTLER,
+                    characters.Tabard.GAREK,
+                    characters.Tabard.REINFORCEDROGUE,
+                    characters.Tabard.NORGUL,
                     characters.Tabard.KIRBY,
                     characters.Tabard.KIMDZONGNEAT,
                     characters.Tabard.CAMPER,

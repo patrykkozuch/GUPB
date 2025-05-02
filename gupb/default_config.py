@@ -1,41 +1,49 @@
 from gupb.controller import keyboard
 from gupb.controller import random
-from gupb.controller import kirby_learning, kirby
-from gupb.controller import roomba
-from gupb.controller.pirat import pirat
+from gupb.controller.camperbot import camperbot
+from gupb.controller.neat import kim_dzong_neat_jr
+from gupb.controller import kirby_learning
 from gupb.controller import norgul
-from gupb.controller.neat.kim_dzong_neat_jr import KimDzongNeatJuniorController
-
+from gupb.controller import reinforced_rogue
+from gupb.controller import garek
+from gupb.controller import rustler
+from gupb.controller.bupg import bupg
+from gupb.controller.pirat import pirat
+from gupb.controller import roomba
+from gupb.controller import Keramzytowy_mocarz
 
 keyboard_controller = keyboard.KeyboardController()
 
 CONFIGURATION = {
     'arenas': [
-        'archipelago',
-        'dungeon',
-        'fisher_island',
-        'island',
-        'isolated_shrine',
-        'lone_sanctum',
-        'mini',
-        'ordinary_chaos',
-        'wasteland',
+        'ordinary_chaos'
     ],
     'controllers': [
-        keyboard_controller,
-        pirat.PiratController("Pirat"),
-        random.RandomController("Alice"),
-        random.RandomController("Bob"),
-        random.RandomController("Cecilia"),
-        random.RandomController("Darius"),
-        roomba.RoombaController("Roomba"),
-        norgul.NorgulController("Norgul")
-        kirby_learning.KirbyLearningController("KirbyLearning"),
-        KimDzongNeatJuniorController(),
+        # random.RandomController("Alice"),
+        # camperbot.CamperBotController("Camper"),
+        # kim_dzong_neat_jr.KimDzongNeatJuniorController(),
+        # kirby_learning.KirbyLearningController("KirbyLearning"),
+        # norgul.NorgulController("Norgul"),
+        # reinforced_rogue.ReinforcedRogueController("ReinforcedRogue"),
+        # garek.GarekController("Garek"),
+        # rustler.Rustler("Rustler"),
+        bupg.BUPGController("BUPG"),
+        random.RandomController("A"),
+        random.RandomController("B"),
+        random.RandomController("C"),
+        random.RandomController("D"),
+        random.RandomController("E"),
+        random.RandomController("F"),
+        random.RandomController("G"),
+        random.RandomController("H"),
+        # roomba.RoombaController("Roomba"),
+        # pirat.PiratController("Pirat"),
+        # Keramzytowy_mocarz.Keramzytowy_mocarz("KERAMZYTOWY_MOCARZ"),
+
     ],
     'start_balancing': False,
-    'visualise': True,
-    'show_sight': keyboard_controller,
-    'runs_no': 5,
+    'visualise': False,
+    'show_sight': False,
+    'runs_no': 1000,
     'profiling_metrics': [],
 }
