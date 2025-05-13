@@ -65,7 +65,7 @@ class Runner:
         self._last_menhir_position = game.arena.menhir_position
         self._last_initial_positions = game.initial_champion_positions
         show_sight = next((c for c in game.champions if c.controller == self.show_sight), None)
-        if self.renderer:
+        if self.renderer and game_no % 50 == 0:
             self.renderer.run(game, show_sight, self.keyboard_controller)
         else:
             self.run_in_memory(game)

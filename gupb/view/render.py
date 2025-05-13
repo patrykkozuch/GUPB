@@ -178,7 +178,7 @@ class Renderer:
             keyboard_controller: Optional[keyboard.KeyboardController] = None,
     ) -> None:
         self.screen = self._resize_window(game)
-        self._render_starting_screen()
+        # self._render_starting_screen()
 
         time_to_cycle = self._time_to_cycle(game)
         self.clock.tick()

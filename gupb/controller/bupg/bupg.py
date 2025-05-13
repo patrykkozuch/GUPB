@@ -1,12 +1,12 @@
 import random
-import sys
 import traceback
 from threading import Event
 
+import cv2
 import numpy as np
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
-from scipy.ndimage import label
+from scipy.ndimage import label, gaussian_filter
 
 from gupb import controller
 from gupb.controller.bupg.knowledge.map import MapKnowledge
@@ -14,7 +14,6 @@ from gupb.controller.bupg.strategies.find_menhir import MenhirEstimator
 from gupb.controller.bupg.utils import position_change_to_move
 from gupb.model import arenas
 from gupb.model import characters
-from gupb.model.arenas import Arena
 from gupb.model.characters import Facing, Action
 from gupb.model.coordinates import Coords
 from gupb.model.weapons import Axe, Bow, Sword, Knife, Scroll, Amulet, PropheticWeapon
@@ -29,11 +28,18 @@ POSSIBLE_ACTIONS = [
     characters.Action.ATTACK,
 ]
 
+FACINGS = [
+    (0, 1),
+    (-1, 0),
+    (1, 0),
+    (0, -1),
+]
+
 
 # noinspection PyUnusedLocal
 # noinspection PyMethodMayBeStatic
 class BUPGController(controller.Controller):
-    WEAPON_PRIORITY = ["axe", "sword", "bow_unloaded", "bow_loaded", "amulet", "scroll", "propheticweapon", "knife"]
+    WEAPON_PRIORITY = ["knife", "axe", "sword", "bow_unloaded", "bow_loaded", "amulet", "scroll", "propheticweapon"]
 
     train_step = Event()
     env = None
@@ -55,7 +61,9 @@ class BUPGController(controller.Controller):
         self.env.attach_controller(self)
         self.died = False
         self.score = None
+        self.champions_alive = None
         self.knowledge = None
+        self.arena_size = None
 
     @classmethod
     def assign_env(cls, env):
@@ -79,6 +87,7 @@ class BUPGController(controller.Controller):
     def update_knowledge(self, knowledge: characters.ChampionKnowledge):
         self.map_knowledge.update_terrain(knowledge)
         self.knowledge = knowledge
+        self.champions_alive = knowledge.no_of_champions_alive
         # self.map_knowledge.episode_tick()
         # self.estimate_menhir(knowledge)
 
@@ -91,23 +100,29 @@ class BUPGController(controller.Controller):
         tile_in_front = knowledge.visible_tiles[self.position + self.facing.value]
         return tile_in_front.character is not None and tile_in_front.character != self.me
 
+    @staticmethod
+    def weapon_class(weapon_name: str):
+        if weapon_name == "axe":
+            return Axe
+        if weapon_name == "sword":
+            return Sword
+        if weapon_name == "bow_unloaded" or weapon_name == "bow_loaded":
+            return Bow
+        if weapon_name == "knife":
+            return Knife
+        if weapon_name == "scroll":
+            return Scroll
+        if weapon_name == "amulet":
+            return Amulet
+        if weapon_name == "propheticweapon":
+            return PropheticWeapon
+        return None
+
     @property
     def enemy_in_range(self):
-        if self.weapon.name == "axe":
-            wpn_class = Axe
-        elif self.weapon.name == "sword":
-            wpn_class = Sword
-        elif self.weapon.name == "bow_unloaded" or self.weapon.name == "bow_loaded":
-            wpn_class = Bow
-        elif self.weapon.name == "knife":
-            wpn_class = Knife
-        elif self.weapon.name == "scroll":
-            wpn_class = Scroll
-        elif self.weapon.name == "amulet":
-            wpn_class = Amulet
-        elif self.weapon.name == "propheticweapon":
-            wpn_class = PropheticWeapon
-        else:
+        wpn_class = self.weapon_class(self.weapon.name)
+
+        if wpn_class is None:
             return False
 
         coords = wpn_class.cut_positions(self.map_knowledge.terrain, self.position, self.facing)
@@ -141,56 +156,56 @@ class BUPGController(controller.Controller):
 
             if not self.env.game_started.is_set():
                 self.env.game_started.set()
-        #
-        #     most_unknown_point = self.map_knowledge.get_most_unknown_point()
-        #
-        #     dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
-        #     if dist_to_potion <= 3:
-        #         point_to_go = point
-        #     else:
-        #         if weapon_coords := self.find_best_weapon():
-        #             point_to_go = weapon_coords
-        #         elif self.map_knowledge.menhir_location:
-        #             dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
-        #             tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
-        #
-        #             if dist_to_mist > 5 and tree_coord and abs(self.map_knowledge.menhir_location[0] - tree_coord[0]) + abs(self.map_knowledge.menhir_location[1] - tree_coord[1]) <= 8:
-        #                 point_to_go = tree_coord
-        #
-        #                 if self.position == point_to_go:
-        #                     if self.enemy_in_range(knowledge):
-        #                         return characters.Action.ATTACK
-        #             else:
-        #                 point_to_go = self.map_knowledge.menhir_location
-        #         else:
-        #             point_to_go = most_unknown_point
-        #
-        #     if not position_changed and self.tries <= 1:
-        #         self.tries += 1
-        #         if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
-        #             return action
-        #
-        #     if not position_changed and self.tries <= 3:
-        #         if self.facing_enemy(knowledge):
-        #             return characters.Action.ATTACK
-        #         else:
-        #             self.tries += 1
-        #             return characters.Action.TURN_LEFT
-        #
-        #     self.tries = 0
+            #
+            #     most_unknown_point = self.map_knowledge.get_most_unknown_point()
+            #
+            #     dist_to_potion, point = self.map_knowledge.distance_to_potion(self.position)
+            #     if dist_to_potion <= 3:
+            #         point_to_go = point
+            #     else:
+            #         if weapon_coords := self.find_best_weapon():
+            #             point_to_go = weapon_coords
+            #         elif self.map_knowledge.menhir_location:
+            #             dist_to_mist = self.map_knowledge.distance_to_mist(self.position)
+            #             tree_coord = self.map_knowledge.find_closest_tree(self.map_knowledge.menhir_location)
+            #
+            #             if dist_to_mist > 5 and tree_coord and abs(self.map_knowledge.menhir_location[0] - tree_coord[0]) + abs(self.map_knowledge.menhir_location[1] - tree_coord[1]) <= 8:
+            #                 point_to_go = tree_coord
+            #
+            #                 if self.position == point_to_go:
+            #                     if self.enemy_in_range(knowledge):
+            #                         return characters.Action.ATTACK
+            #             else:
+            #                 point_to_go = self.map_knowledge.menhir_location
+            #         else:
+            #             point_to_go = most_unknown_point
+            #
+            #     if not position_changed and self.tries <= 1:
+            #         self.tries += 1
+            #         if action := self.go(knowledge.position, Coords(*point_to_go), self.facing):
+            #             return action
+            #
+            #     if not position_changed and self.tries <= 3:
+            #         if self.facing_enemy(knowledge):
+            #             return characters.Action.ATTACK
+            #         else:
+            #             self.tries += 1
+            #             return characters.Action.TURN_LEFT
+            #
+            #     self.tries = 0
+
+            # Mark the current turn as finished
+            self.env.turn_event.set()
+
+            # Wait for the training step to finish
+            self.train_step.wait()
+            self.train_step.clear()
+
+            return POSSIBLE_ACTIONS[self.env.action]
         except:
             print(traceback.print_exc())
-
-        # Mark the current turn as finished
-        self.env.turn_event.set()
-
-        # Wait for the training step to finish
-        self.train_step.wait()
-        self.train_step.clear()
-
-        return POSSIBLE_ACTIONS[self.env.action]
         # Just Dance
-        # return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
+        return characters.Action.TURN_LEFT if random.random() > 0.5 else characters.Action.TURN_RIGHT
 
     def go(self, start: Coords, end: Coords, facing: Facing) -> Action | None:
         """
@@ -207,9 +222,10 @@ class BUPGController(controller.Controller):
         path, runs = self.pathfinder.find_path(start, end, self.grid)
         if len(path) > 1:
             return position_change_to_move(
-                (path[1].y, path[1].x),
                 (start.y, start.x),
-                facing
+                (path[1].y, path[1].x),
+                facing,
+                "yx"
             )
 
     def praise(self, score: int) -> None:
@@ -221,16 +237,18 @@ class BUPGController(controller.Controller):
         print(score)
 
     def reset(self, game_no: int, arena_description: arenas.ArenaDescription) -> None:
-        self.map_knowledge = MapKnowledge(terrain=Arena.load(arena_description.name).terrain)
+        arena = arenas.Arena.load(arena_description.name)
+        self.map_knowledge = MapKnowledge(terrain=arena.terrain)
+        self.arena_size = arena.size
         self.menhir_estimator = MenhirEstimator(self.map_knowledge)
         self.ticks = 0
         self.create_grid()
         self.died = False
 
     def create_grid(self):
-        W = max(self.map_knowledge.terrain, key=lambda x: x[0])[0] + 1
-        H = max(self.map_knowledge.terrain, key=lambda x: x[1])[1] + 1
-        self.grid = np.zeros(shape=(H, W))
+        W, H = self.arena_size
+
+        self.grid = np.zeros(shape=(H + 1, W + 1))
 
         for (x, y), tile in self.map_knowledge.terrain.items():
             if tile.terrain_passable():
@@ -256,55 +274,149 @@ class BUPGController(controller.Controller):
         self.grid = find_largest_blob(self.grid)
 
         self.map_knowledge.looked_at = self.grid
+        self.map_knowledge.last_looked_at = np.zeros(shape=self.grid.shape)
+        self.map_knowledge.initial_seen = np.sum(self.grid)
         self.map_knowledge.remove_unreachable_weapons()
 
         for (x, y), tile in self.map_knowledge.terrain.items():
-            if tile.loot and self.grid[x, y] > 0:
-                self.grid[x, y] = 3 + self.WEAPON_PRIORITY.index(tile.loot.description().name)
+            if tile.loot and self.grid[y, x] > 0:
+                self.grid[y, x] = 1
 
+        self.map_knowledge.walkable = np.copy(self.grid)
         self.grid = Grid(matrix=self.grid)
 
     @property
-    def neighborhood(self):
-        L1_ENCODING = ['sea', 'land', 'forest', 'wall', 'menhir', 'mist', 'fire']
-        L2_ENCODING = self.WEAPON_PRIORITY + ['potion']
+    def maps(self):
+        MAP_SIZE = 11
+        MAP_HALF = MAP_SIZE // 2
 
-        neighborhood = np.zeros(shape=(15, 15, 3))
-        for x in range(self.position.x - 7, self.position.x + 8):
-            for y in range(self.position.y - 7, self.position.y + 8):
-                if x < 0:
-                    continue
-                if y < 0:
-                    continue
+        opponents_map = np.zeros(shape=(2, MAP_SIZE, MAP_SIZE))
+        terrain_map = np.zeros(shape=(1, MAP_SIZE, MAP_SIZE))
+        weapons_map = np.zeros(shape=(1, MAP_SIZE, MAP_SIZE))
+        effects_map = np.zeros(shape=(2, MAP_SIZE, MAP_SIZE))
+        my_map = np.zeros(shape=(2, MAP_SIZE, MAP_SIZE))
 
+        visible_coords, _ = zip(*self.knowledge.visible_tiles.items())
+        range_coords = self.weapon_class(self.weapon.name).cut_positions(
+            self.map_knowledge.terrain,
+            self.position,
+            self.facing
+            )
+
+        for x in range(self.position.x - MAP_HALF, self.position.x + MAP_HALF + 1):
+            for y in range(self.position.y - MAP_HALF, self.position.y + MAP_HALF + 1):
                 if (x, y) not in self.map_knowledge.terrain:
                     continue
 
-                l1_index = (y - (self.position.y - 7), x - (self.position.x - 7), 0)
-                l2_index = (y - (self.position.y - 7), x - (self.position.x - 7), 1)
-                l3_index = (y - (self.position.y - 7), x - (self.position.x - 7), 2)
+                walkable_index = (0, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
 
-                if self.map_knowledge.menhir_location is not None and self.map_knowledge.menhir_location[0] == x and self.map_knowledge.menhir_location[1] == y:
-                    neighborhood[l1_index] = (L1_ENCODING.index("menhir") + 1) * 30
+                if self.map_knowledge.terrain[x, y].description().type in ['land', 'forest']:
+                    if self.map_knowledge.terrain[x, y].description().type == 'land':
+                        terrain_map[walkable_index] = 0.5
+                    else:
+                        terrain_map[walkable_index] = 1.0
                 else:
-                    neighborhood[l1_index] = (L1_ENCODING.index(self.map_knowledge.terrain[x, y].description().type) + 1) * 30
+                    if self.map_knowledge.terrain[x, y].description().type == 'sea':
+                        terrain_map[walkable_index] = -0.5
+                    else:
+                        terrain_map[walkable_index] = -1.0
 
-                if (x, y) in self.map_knowledge.fires:
-                    neighborhood[l1_index] = (L1_ENCODING.index('fire') + 1) * 30
-
-                if (x, y) in self.map_knowledge.mist:
-                    neighborhood[l1_index] = (L1_ENCODING.index('mist') + 1) * 30
+                type_index = (0, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
 
                 if (x, y) in self.map_knowledge.weapons:
-                    neighborhood[l2_index] = (L2_ENCODING.index(self.map_knowledge.weapons[x, y].name) + 1) * 25
+                    weapon = self.map_knowledge.weapons[x, y]
+                    weapons_map[type_index] = (self.WEAPON_PRIORITY.index(weapon.name) + 1) / (
+                            len(self.WEAPON_PRIORITY) + 1)
+
+                consumable_index = (0, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
+                hazardous_index = (1, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
 
                 if (x, y) in self.map_knowledge.consumables:
-                    neighborhood[l2_index] = (L2_ENCODING.index(self.map_knowledge.consumables[x, y].name) + 1) * 25
+                    effects_map[consumable_index] = 1.0
 
-                if (x, y) in self.map_knowledge.opponents:
-                    neighborhood[l3_index] = 255 / (self.map_knowledge.timestamp - self.map_knowledge.opponents[x, y])
+                if self.map_knowledge.mist[y, x] > 0.5 or (x, y) in self.map_knowledge.fires:
+                    effects_map[hazardous_index] = 1.0
 
-        return neighborhood.astype(np.uint8)
+                seen_index = (0, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
+                my_weapon_index = (1, y - (self.position.y - MAP_HALF), x - (self.position.x - MAP_HALF))
+
+                age = self.map_knowledge.timestamp - self.map_knowledge.last_looked_at[y, x] + 1
+                my_map[seen_index] = np.exp(-age / 80)
+
+                if (x, y) in range_coords:
+                    wpn_dmg = (3 if self.weapon.name in ['bow_loaded', 'bow_unloaded', 'axe'] else 2) / 3
+                    my_map[my_weapon_index] = wpn_dmg
+
+        # Gaussian blur my_map
+        gaussian_filter(my_map[1], sigma=1, output=my_map[1])
+
+        for (x, y), op in self.map_knowledge.opponents.items():
+            op_weapon = self.weapon_class(op.weapon.name)
+            cut_positions = op_weapon.cut_positions(self.map_knowledge.terrain, Coords(x, y), op.facing)
+
+            for (cut_x, cut_y) in cut_positions:
+                if (cut_x, cut_y) not in self.map_knowledge.terrain:
+                    continue
+
+                idx_y = cut_y - (self.position.y - MAP_HALF)
+                idx_x = cut_x - (self.position.x - MAP_HALF)
+                if 0 <= idx_y < MAP_SIZE and 0 <= idx_x < MAP_SIZE:
+                    wpn_dmg = (3 if op.weapon.name in ['bow_loaded', 'bow_unloaded', 'axe'] else 2) / 3
+                    opponents_map[0, idx_y, idx_x] = wpn_dmg
+
+            op_y = y - (self.position.y - MAP_HALF)
+            op_x = x - (self.position.x - MAP_HALF)
+
+            if 0 <= op_y < MAP_SIZE and 0 <= op_x < MAP_SIZE:
+                opponents_map[1, op_y, op_x] = op.health / 20
+
+        # Gaussian blur opponents_map
+        gaussian_filter(opponents_map[0], sigma=1, output=opponents_map[0])
+        gaussian_filter(opponents_map[1], sigma=1, output=opponents_map[1])
+
+        menhir_path = np.zeros(shape=(1, MAP_SIZE, MAP_SIZE))
+
+        if self.map_knowledge.menhir_location is not None:
+            path = self.path_to_menhir()
+            for (y, x) in path:
+                m_y = y - (self.position.y - MAP_HALF)
+                m_x = x - (self.position.x - MAP_HALF)
+                if 0 <= m_y < MAP_SIZE and 0 <= m_x < MAP_SIZE:
+                    menhir_path[0, m_y, m_x] = 1.0
+
+        # Combine maps into one
+        return np.concatenate(
+            (opponents_map, terrain_map, menhir_path, weapons_map, effects_map, my_map), axis=0
+        )
+
+    def distance_to_menhir(self):
+        if self.map_knowledge.menhir_location is None:
+            return 10000
+
+        self.grid.cleanup()
+
+        start = self.grid.node(self.position[0], self.position[1])
+        end = self.grid.node(self.map_knowledge.menhir_location[0], self.map_knowledge.menhir_location[1])
+
+        path, runs = self.pathfinder.find_path(start, end, self.grid)
+
+        return len(path) - 1 if len(path) > 1 else 10000
+
+    def path_to_menhir(self):
+        if self.map_knowledge.menhir_location is None:
+            return []
+
+        self.grid.cleanup()
+
+        start = self.grid.node(self.position[0], self.position[1])
+        end = self.grid.node(self.map_knowledge.menhir_location[0], self.map_knowledge.menhir_location[1])
+
+        path, runs = self.pathfinder.find_path(start, end, self.grid)
+
+        return path
+
+    def is_in_tree(self):
+        return self.map_knowledge.terrain[self.position].description().type == 'forest'
 
     @property
     def name(self) -> str:

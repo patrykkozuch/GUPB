@@ -29,11 +29,18 @@ def circle_from_points(p1, p2, p3):
     return cx, cy
 
 
-def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing):
-    move = Coords(
-        curr_pos[1] - new_pos[1],
-        (curr_pos[0] - new_pos[0])
-    )
+def position_change_to_move(curr_pos: tuple, new_pos: tuple, facing: Facing, coords_order) -> characters.Action:
+    if coords_order == "yx":
+        move = Coords(
+            new_pos[1] - curr_pos[1],
+            new_pos[0] - curr_pos[0]
+        )
+    else:
+        move = Coords(
+            new_pos[0] - curr_pos[0],
+            new_pos[1] - curr_pos[1]
+        )
+
 
     if facing.value == move:
         return characters.Action.STEP_FORWARD

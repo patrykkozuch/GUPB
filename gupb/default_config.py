@@ -1,3 +1,5 @@
+import numpy as np
+
 from gupb.controller import keyboard
 from gupb.controller import random
 from gupb.controller.camperbot import camperbot
@@ -14,28 +16,32 @@ from gupb.controller import Keramzytowy_mocarz
 
 keyboard_controller = keyboard.KeyboardController()
 
+arenas = [
+        'archipelago',
+        'dungeon',
+        'fisher_island',
+        'isolated_shrine',
+        'lone_sanctum',
+        'mini',
+        'ordinary_chaos',
+        'wasteland'
+    ]
+
+np.random.shuffle(arenas)
+
 CONFIGURATION = {
-    'arenas': [
-        'ordinary_chaos'
-    ],
+    'arenas': arenas,
     'controllers': [
         # random.RandomController("Alice"),
         # camperbot.CamperBotController("Camper"),
         # kim_dzong_neat_jr.KimDzongNeatJuniorController(),
         # kirby_learning.KirbyLearningController("KirbyLearning"),
-        # norgul.NorgulController("Norgul"),
+        norgul.NorgulController("Norgul A"),
+        norgul.NorgulController("Norgul B"),
         # reinforced_rogue.ReinforcedRogueController("ReinforcedRogue"),
-        # garek.GarekController("Garek"),
-        # rustler.Rustler("Rustler"),
+        garek.GarekController("Garek A"),
+        garek.GarekController("Garek B"),
         bupg.BUPGController("BUPG"),
-        random.RandomController("A"),
-        random.RandomController("B"),
-        random.RandomController("C"),
-        random.RandomController("D"),
-        random.RandomController("E"),
-        random.RandomController("F"),
-        random.RandomController("G"),
-        random.RandomController("H"),
         # roomba.RoombaController("Roomba"),
         # pirat.PiratController("Pirat"),
         # Keramzytowy_mocarz.Keramzytowy_mocarz("KERAMZYTOWY_MOCARZ"),
@@ -44,6 +50,6 @@ CONFIGURATION = {
     'start_balancing': False,
     'visualise': False,
     'show_sight': False,
-    'runs_no': 1000,
+    'runs_no': 10000,
     'profiling_metrics': [],
 }
